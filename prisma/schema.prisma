@@ -1,0 +1,387 @@
+// Body Restore Enterprise Affiliate CRM Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Affiliate {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  name               String
+  
+  // Platform Handles
+  instagramHandle    String?
+  tiktokHandle       String?
+  youtubeHandle      String?
+  youtubeChannelId   String?
+  
+  // Metrics by Platform
+  instagramFollowers Int?
+  tiktokFollowers    Int?
+  youtubeSubscribers Int?
+  
+  // Performance Metrics
+  instagramEngagement Float?  // Engagement rate percentage
+  tiktokEngagement   Float?
+  youtubeAvgViews    Int?     // Average views per video
+  youtubeEngagement  Float?   // Like/view ratio
+  
+  // Business Info
+  niche              String?
+  primaryPlatform    Platform @default(INSTAGRAM)
+  tierLevel          TierLevel @default(MICRO)
+  platformPreference String   @default("D2C")
+  
+  // Status & Management
+  status             AffiliateStatus @default(PROSPECT)
+  notes              String?
+  discountCode       String?
+  commissionRate     Float    @default(0.20)
+  
+  // AI Insights
+  aiPersonalityScore Float?   // AI-generated personality match score
+  contentCategories  String[] // AI-identified content categories
+  audienceMatch      Float?   // Audience-brand alignment score
+  riskScore          Float?   // Performance risk assessment
+  
+  // Timestamps
+  lastContactDate    DateTime?
+  onboardedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  // Relations
+  commissions        Commission[]
+  emailSequences     AffiliateEmailSequence[]
+  socialPosts        SocialPost[]
+  performanceMetrics PerformanceMetric[]
+  
+  @@map("affiliates")
+}
+
+model Commission {
+  id                 String    @id @default(cuid())
+  affiliateId        String
+  
+  // Transaction Details
+  orderId            String?
+  amount             Float
+  commissionAmount   Float
+  platform           String    // "Amazon" | "D2C" | "Shopify"
+  
+  // Source Tracking
+  sourcePost         String?   // Link to the social post that generated sale
+  sourcePlatform     Platform? // Which platform drove the sale
+  customerLocation   String?   // Customer geo data
+  
+  // Status & Timing
+  status             CommissionStatus @default(PENDING)
+  orderDate          DateTime?
+  paidDate           DateTime?
+  
+  // Analytics
+  conversionValue    Float?    // Customer lifetime value
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  
+  // Relations
+  affiliate          Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  
+  @@map("commissions")
+}
+
+model SocialPost {
+  id                 String   @id @default(cuid())
+  affiliateId        String
+  
+  // Post Details
+  platform           Platform
+  postUrl            String
+  postType           PostType @default(FEED)
+  caption            String?
+  
+  // Performance Metrics
+  views              Int?
+  likes              Int?
+  comments           Int?
+  shares             Int?
+  saves              Int?     // Instagram saves
+  clickThroughs      Int?     // Link clicks
+  
+  // Business Metrics
+  conversions        Int      @default(0)
+  revenue           Float    @default(0)
+  
+  // AI Analysis
+  sentimentScore    Float?   // AI sentiment analysis
+  contentScore      Float?   // Content quality score
+  brandAlignment    Float?   // How well it aligns with brand
+  
+  // Timestamps
+  publishedAt       DateTime?
+  analyzedAt        DateTime?
+  createdAt         DateTime @default(now())
+  
+  // Relations
+  affiliate         Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  
+  @@map("social_posts")
+}
+
+model PerformanceMetric {
+  id              String   @id @default(cuid())
+  affiliateId     String
+  
+  // Time Period
+  month           Int      // 1-12
+  year            Int
+  week            Int?     // Week of year for weekly metrics
+  
+  // Revenue Metrics
+  totalRevenue    Float    @default(0)
+  totalCommission Float    @default(0)
+  avgOrderValue   Float?
+  
+  // Performance Metrics
+  clickThroughs   Int      @default(0)
+  conversions     Int      @default(0)
+  conversionRate  Float?
+  
+  // Platform Metrics
+  totalFollowers  Int?
+  totalViews      Int?
+  totalEngagement Float?
+  
+  // AI Scores
+  performanceScore Float?  // Overall performance score
+  trendScore      Float?   // Trending up/down indicator
+  
+  createdAt       DateTime @default(now())
+  
+  // Relations
+  affiliate       Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  
+  @@unique([affiliateId, year, month])
+  @@map("performance_metrics")
+}
+
+model EmailTemplate {
+  id              String   @id @default(cuid())
+  name            String
+  subject         String
+  content         String
+  templateType    EmailType @default(OUTREACH)
+  
+  // Platform Specific
+  targetPlatform  Platform?
+  targetTier      TierLevel?
+  
+  // Performance
+  sentCount       Int      @default(0)
+  openCount       Int      @default(0)
+  responseCount   Int      @default(0)
+  
+  // AI Features
+  aiGenerated     Boolean  @default(false)
+  personalityType String?  // For AI personalization
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  emailSequences  AffiliateEmailSequence[]
+  
+  @@map("email_templates")
+}
+
+model AffiliateEmailSequence {
+  id              String        @id @default(cuid())
+  affiliateId     String
+  templateId      String
+  
+  status          EmailStatus   @default(PENDING)
+  sentAt          DateTime?
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  repliedAt       DateTime?
+  scheduledFor    DateTime?
+  
+  // AI Features
+  personalizedContent String?    // AI-customized content
+  sentimentAnalysis   String?    // AI analysis of response
+  
+  createdAt       DateTime      @default(now())
+  
+  // Relations
+  affiliate       Affiliate     @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  template        EmailTemplate @relation(fields: [templateId], references: [id])
+  
+  @@map("affiliate_email_sequences")
+}
+
+model DiscountCode {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  description     String?
+  
+  // Discount Details
+  discount        Float    // percentage or fixed amount
+  discountType    String   @default("percentage") // "percentage" | "fixed"
+  platform        String   // "Amazon" | "D2C" | "Both"
+  
+  // Usage Tracking
+  usageCount      Int      @default(0)
+  usageLimit      Int?     // Maximum uses
+  
+  // Performance
+  totalRevenue    Float    @default(0)
+  totalCommission Float    @default(0)
+  
+  isActive        Boolean  @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("discount_codes")
+}
+
+model BrandAsset {
+  id              String   @id @default(cuid())
+  name            String
+  filename        String
+  filepath        String
+  filesize        Int
+  contentType     String
+  
+  // Categorization
+  category        AssetCategory @default(LOGO)
+  platform        Platform?     // Platform-specific assets
+  description     String?
+  
+  // Usage Tracking
+  downloadCount   Int      @default(0)
+  lastDownloaded  DateTime?
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  
+  @@map("brand_assets")
+}
+
+model AIInsight {
+  id              String   @id @default(cuid())
+  
+  // Insight Details
+  type            InsightType
+  title           String
+  description     String
+  severity        Severity @default(INFO)
+  
+  // Related Data
+  affiliateId     String?
+  data            Json?    // Flexible data storage for insights
+  
+  // Status
+  isRead          Boolean  @default(false)
+  isActionable    Boolean  @default(false)
+  actionTaken     Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime?
+  
+  @@map("ai_insights")
+}
+
+// Enums
+enum Platform {
+  INSTAGRAM
+  TIKTOK
+  YOUTUBE
+  FACEBOOK
+  TWITTER
+  LINKEDIN
+}
+
+enum TierLevel {
+  NANO        // 1K-10K
+  MICRO       // 10K-100K  
+  MACRO       // 100K-1M
+  MEGA        // 1M+
+}
+
+enum AffiliateStatus {
+  PROSPECT
+  CONTACTED
+  NEGOTIATING
+  ONBOARDED
+  ACTIVE
+  PAUSED
+  INACTIVE
+  BLACKLISTED
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  DISPUTED
+  REFUNDED
+}
+
+enum PostType {
+  FEED
+  STORY
+  REEL
+  VIDEO
+  LIVE
+  SHORT
+}
+
+enum EmailType {
+  OUTREACH
+  ONBOARDING
+  FOLLOWUP
+  PERFORMANCE
+  PAYMENT
+  REACTIVATION
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  OPENED
+  CLICKED
+  REPLIED
+  BOUNCED
+}
+
+enum AssetCategory {
+  LOGO
+  PRODUCT_IMAGE
+  BANNER
+  TEMPLATE
+  VIDEO
+  DOCUMENT
+}
+
+enum InsightType {
+  PERFORMANCE_TREND
+  RISK_ALERT
+  OPPORTUNITY
+  RECOMMENDATION
+  ANOMALY
+}
+
+enum Severity {
+  LOW
+  INFO
+  WARNING
+  HIGH
+  CRITICAL
+}
